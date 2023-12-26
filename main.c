@@ -119,7 +119,7 @@ int isCanalNameUsed(struct canaux *liste,  char *nom,struct canaux **c){
 int nouveuCanal(struct canaux **liste, char *nom, struct users *creator) {
     struct canaux *c;
     if(isCanalNameUsed(*liste,nom,c)==0) {
-        struct canaux *newCanal = malloc(sizeof(struct users));
+        struct canaux *newCanal = malloc(sizeof(struct canaux));
         strncpy(newCanal->nom, nom, sizeof(newCanal->nom));
         struct usersConn *newUserConn = malloc(sizeof(struct usersConn));
         newUserConn->status = 1;
@@ -253,8 +253,8 @@ int changerNom(struct users **liste,   char *nom, int adresse){ //0 si nom utili
     return -1;
 }
 
-void removeCanalFromUser(struct userCanals **liste, struct canaux *c) {
-    struct userCanals *usercanals = *liste;
+void removeCanalFromUser(struct users *u, struct canaux *c) {
+    struct userCanals *usercanals = u->userscanaux;
     struct userCanals *precUser = NULL;
 
     while (usercanals != NULL) {
@@ -262,24 +262,25 @@ void removeCanalFromUser(struct userCanals **liste, struct canaux *c) {
             if (precUser != NULL) {
                 precUser->nextUserCanal = usercanals->nextUserCanal;
             } else {
-                usercanals = usercanals->nextUserCanal;
+                u->userscanaux = usercanals->nextUserCanal;
             }
 
             free(usercanals);
             printf("Élément trouvé et supprimé.\n");
             return;
-        }
+        }else {
 
-        precUser = usercanals;
-        usercanals = usercanals->nextUserCanal;
+            precUser = usercanals;
+            usercanals = usercanals->nextUserCanal;
+        }
     }
 
     printf("Élément non trouvé.\n");
 }
 
 
-void removeUserFromCanal(struct users *u, struct usersConn **liste) {
-    struct usersConn *usercon = *liste;
+void removeUserFromCanal(struct users *u, struct canaux *c) {
+    struct usersConn *usercon = c->usersconn;
     struct usersConn *precUsercon = NULL;
 
     while (usercon != NULL) {
@@ -287,19 +288,21 @@ void removeUserFromCanal(struct users *u, struct usersConn **liste) {
             if (precUsercon != NULL) {
                 precUsercon->nextUserConnected = usercon->nextUserConnected;
             } else {
-                usercon = usercon->nextUserConnected;
+                c->usersconn = usercon->nextUserConnected;
             }
 
             free(usercon);
             printf("Utilisateur trouvé et supprimé du canal.\n");
             return;
-        }
+        }else {
 
-        precUsercon = usercon;
-        usercon = usercon->nextUserConnected;
+            precUsercon = usercon;
+            usercon = usercon->nextUserConnected;
+        }
     }
 
     printf("Utilisateur non trouvé dans le canal.\n");
+    return ;
 }
 
 void sendResponse(char *error,int adresse,int isError){
@@ -415,7 +418,7 @@ int main() {
     struct users *u = malloc(sizeof(struct users));
     u->adresse=1;
     char nom[21]={"test1"};
-    ljust(nom,20,' ');
+    /*ljust(nom,20,' ');
     strncpy(u->nom, nom ,sizeof (u->nom));
     u->ptrUserSuivante=NULL;
     strncpy(nom, "test1", sizeof(nom));
@@ -423,7 +426,7 @@ int main() {
     nouveuCanal(&premierCanal,nom,u);
     strncpy(nom, "test2", sizeof(nom));
     ljust(nom,20,' ');
-    nouveuCanal(&premierCanal,nom,u);
+    nouveuCanal(&premierCanal,nom,u);*/
 
     while(i<100) {
         FD_ZERO(&readfds);
@@ -457,9 +460,9 @@ int main() {
             fflush(stdout);
             //assert(userCourant!=NULL);
             while (userCourant != NULL) {
-                if(userCourant!=NULL) {
+                    printf("un ptit tour\n");
                     printf("%s\n", userCourant->user->nom);
-                }
+
                 userCourant=userCourant->nextUserConnected;
             }
             fflush(stdout);
@@ -472,184 +475,190 @@ int main() {
             printf("LOG | select error");
         }
 
-            if (FD_ISSET(s, &readfds)) {
-                c = accept(s, (struct sockaddr *) &cli, &clilen);
-                printf("LOG |  Connexion from %s adresse %d \n", inet_ntoa(cli.sin_addr), c);
+        if (FD_ISSET(s, &readfds)) {
+            c = accept(s, (struct sockaddr *) &cli, &clilen);
+            printf("LOG |  Connexion from %s adresse %d \n", inet_ntoa(cli.sin_addr), c);
 
-                nUser++;
-                char nom[20];
-                char characters[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9',
-                                     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-                                     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-                                     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-                                     'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
-                //nom = (char*)malloc(sizeof(char) * (21));
-                srand(time(NULL));
-                for(int i=0;i<strlen(nom);i++){
-                    nom[i]=characters[rand() % 60 + 0];
-                }
-                ljust(nom,20,' ');
-                nouvelleUser(&premieruser, nom, c);
-                write(c, nom, strlen(nom));
-                //FD_SET(c, &readfds);
-                if (c > highsock) {
-                    highsock = c;
-                }
+            nUser++;
+            char nom[20];
+            char characters[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9',
+                                 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                                 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+                                 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+                                 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'};
+            //nom = (char*)malloc(sizeof(char) * (21));
+            srand(time(NULL));
+            for(int i=0;i<strlen(nom);i++){
+                nom[i]=characters[rand() % 60 + 0];
             }
-            userCourant = premieruser;
-            while (userCourant != NULL) {
+            ljust(nom,20,' ');
+            nouvelleUser(&premieruser, nom, c);
+            write(c, nom, strlen(nom));
+            //FD_SET(c, &readfds);
+            if (c > highsock) {
+                highsock = c;
+            }
+        }
+        userCourant = premieruser;
+        while (userCourant != NULL) {
 
-                if (FD_ISSET(userCourant->adresse, &readfds)) {
-                    // Socket prêt pour la lecture
+            if (FD_ISSET(userCourant->adresse, &readfds)) {
+                // Socket prêt pour la lecture
 
-                    n = read(userCourant->adresse, buf, sizeof(buf));
-                    buf[n] = '\0';
-                    if (n <= 0) {
-                        printf("Déconnexion du client : %s\n",userCourant->nom);
-                        close(userCourant->adresse);
-                        // TODO: Supprimer le client de la liste
-                    } else {
-                        int v1;
-                        memcpy(&v1, &buf[0], sizeof(int));
-                        if(n!=v1){
-                            sendResponse("error de taille1",userCourant->adresse,1);
-                        }else {
-                            int v2;
-                            memcpy(&v2, &buf[sizeof(int)],sizeof(int)); // ou v2= * (int*) (buf+sizeof(int)); ou v2 = *((int*) buf)+1);
-                            switch (v2) {
-                                case chName:
-                                    if(n== sizeof(int)*2+sizeof(char)*21) {
-                                        char mot[20];
-                                        memcpy(&mot, &buf[sizeof(int) * 2], 21);
-                                        printf("LOG | Changement du nom de %s\n",userCourant->nom);
-                                        if(changerNom(&premieruser, mot, userCourant->adresse)>0) {
-                                            printf("LOG | Nouveau nom : %s\n",mot);
-                                            sendResponse("ok",userCourant->adresse,0);
-                                        }else{
-                                            printf("LOG | Erreur, nom déja réservé : %s\n",mot);
-                                            sendResponse(userCourant->nom,userCourant->adresse,1);
-                                        }
+                n = read(userCourant->adresse, buf, sizeof(buf));
+                buf[n] = '\0';
+                if (n <= 0) {
+                    printf("Déconnexion du client : %s\n",userCourant->nom);
+                    close(userCourant->adresse);
+                    // TODO: Supprimer le client de la liste
+                } else {
+                    int v1;
+                    memcpy(&v1, &buf[0], sizeof(int));
+                    if(n!=v1){
+                        sendResponse("error de taille1",userCourant->adresse,1);
+                    }else {
+                        int v2;
+                        memcpy(&v2, &buf[sizeof(int)],sizeof(int)); // ou v2= * (int*) (buf+sizeof(int)); ou v2 = *((int*) buf)+1);
+                        switch (v2) {
+                            case chName:
+                                if(n== sizeof(int)*2+sizeof(char)*21) {
+                                    char mot[20];
+                                    memcpy(&mot, &buf[sizeof(int) * 2], 21);
+                                    printf("LOG | Changement du nom de %s\n",userCourant->nom);
+                                    if(changerNom(&premieruser, mot, userCourant->adresse)>0) {
+                                        printf("LOG | Nouveau nom : %s\n",mot);
+                                        sendResponse("ok",userCourant->adresse,0);
                                     }else{
-                                        sendResponse("error de taille2",userCourant->adresse,1);
+                                        printf("LOG | Erreur, nom déja réservé : %s\n",mot);
+                                        sendResponse(userCourant->nom,userCourant->adresse,1);
                                     }
-                                    break;
-                                case getCanauxNames:
-                                    if(n== sizeof(int)*2) {
-                                        char* retour;
-                                        int taille = getAllCanalsName(&premierCanal,&retour);
+                                }else{
+                                    sendResponse("error de taille2",userCourant->adresse,1);
+                                }
+                                break;
+                            case getCanauxNames:
+                                if(n== sizeof(int)*2) {
+                                    printf("sending canals name");
+                                    char* retour;
+                                    int taille = getAllCanalsName(&premierCanal,&retour);
+                                    printf("taille : %d",taille);
+                                    struct retour r;
+                                    r.type=1;
+                                    r.taille=taille;
+                                    write(userCourant->adresse, &r, sizeof(r));
+                                    write(userCourant->adresse,retour,taille);
 
-                                        struct retour r;
-                                        r.type=1;
-                                        r.taille=taille;
-                                        write(userCourant->adresse, &r, sizeof(r));
-                                        write(userCourant->adresse,retour,taille);
 
+                                }else{
+                                    sendResponse("error de taille2",userCourant->adresse,1);
+                                }
+                                break;
+                            case joinCanal:
+                                if(n== sizeof(int)*2+sizeof(char)*21) {
+                                    char nom[20];
+                                    struct canaux *c;
 
-                                    }else{
-                                        sendResponse("error de taille2",userCourant->adresse,1);
-                                    }
-                                    break;
-                                case joinCanal:
-                                    if(n== sizeof(int)*2+sizeof(char)*21) {
-                                        char nom[20];
-                                        struct canaux *c;
+                                    memcpy(&nom, &buf[sizeof(int) * 2], 21);
 
-                                        memcpy(&nom, &buf[sizeof(int) * 2], 21);
+                                    if(isCanalNameUsed(premierCanal,nom,&c)==1){
 
-                                        if(isCanalNameUsed(premierCanal,nom,&c)==1){
-
-                                            if (c==NULL) {
-                                                printf("LOG | erreur c est null\n");
-                                                sendResponse("Error canal not found",userCourant->adresse,1);
-                                            }else {
-                                                if(isUserInChannel(&(c->usersconn),userCourant)==0) {
-                                                    joinCanale(c, userCourant);
-                                                    sendResponse("ok", userCourant->adresse, 0);
-                                                    printf("LOG | %s rejoint le canal : %s\n", userCourant->nom, c->nom);
-                                                }else{
-                                                    printf("LOG | %s est déjà dans le canal : %s\n",userCourant-> nom,c->nom);
-                                                    sendResponse("Vous etes deja dans le canal",userCourant->adresse,1);
-                                                }
-
+                                        if (c==NULL) {
+                                            printf("LOG | erreur c est null\n");
+                                            sendResponse("Error canal not found",userCourant->adresse,1);
+                                        }else {
+                                            if(isUserInChannel(&(c->usersconn),userCourant)==0) {
+                                                joinCanale(c, userCourant);
+                                                sendResponse("ok", userCourant->adresse, 0);
+                                                printf("LOG | %s rejoint le canal : %s\n", userCourant->nom, c->nom);
+                                            }else{
+                                                printf("LOG | %s est déjà dans le canal : %s\n",userCourant-> nom,c->nom);
+                                                sendResponse("Vous etes deja dans le canal",userCourant->adresse,1);
                                             }
-                                        }else{
-                                            nouveuCanal(&premierCanal,nom,userCourant);
-                                            sendResponse("nouveau",userCourant->adresse,0);
-                                            printf("LOG | nouveau canal : %s ",c->nom);
+
                                         }
                                     }else{
-                                        sendResponse("error de taille2",userCourant->adresse,1);
+                                        nouveuCanal(&premierCanal,nom,userCourant);
+                                        sendResponse("nouveau",userCourant->adresse,0);
+                                        printf("LOG | nouveau canal : %s ",c->nom);
                                     }
-                                    break;
-                                case sendMess:
+                                }else{
+                                    sendResponse("error de taille2",userCourant->adresse,1);
+                                }
+                                break;
+                            case sendMess:
 
 
-                                    if(n== sizeof(int)*2+sizeof(char)*21+ sizeof(char)*121) {
-                                        char nom[20];
-                                        char message[120];
-                                        struct canaux *c;
-                                        printf("%s\n",buf);
-                                        memcpy(&nom, &buf[sizeof(int) * 2], 21);
-                                        memcpy(&message, &buf[(sizeof(int) * 2)+ sizeof(char)*21], 121);
-                                        printf("Nom du canal : %s\n",nom);
-                                        if(isCanalNameUsed(premierCanal,nom,&c)==1){
+                                if(n== sizeof(int)*2+sizeof(char)*21+ sizeof(char)*121) {
+                                    char nom[20];
+                                    char message[120];
+                                    struct canaux *c;
+                                    printf("%s\n",buf);
+                                    memcpy(&nom, &buf[sizeof(int) * 2], 21);
+                                    memcpy(&message, &buf[(sizeof(int) * 2)+ sizeof(char)*21], 121);
+                                    printf("Nom du canal : %s\n",nom);
+                                    if(isCanalNameUsed(premierCanal,nom,&c)==1){
 
-                                            if (c==NULL) {
-                                                printf("LOG | erreur c est null");
-                                                //sendResponse("Error canal not found",userCourant->adresse,1);
-                                            }else {
-                                                if(isUserInChannel(&(c->usersconn),userCourant)==1) {
-                                                    sendMessage(&(c->usersconn),userCourant->nom,message,c->nom);
-                                                    //sendResponse("ok",userCourant->adresse,0);
-                                                    printf("LOG | %s envoie un message sur  le canal : %s\n", userCourant->nom, c->nom);
-                                                }else{
-                                                    printf("LOG | %s n'est pas dans le canal : %s\n",userCourant-> nom,c->nom);
-                                                    sendResponse("Vous n'etes pas dans le canal",userCourant->adresse,1);
-                                                }
-
+                                        if (c==NULL) {
+                                            printf("LOG | erreur c est null");
+                                            //sendResponse("Error canal not found",userCourant->adresse,1);
+                                        }else {
+                                            if(isUserInChannel(&(c->usersconn),userCourant)==1) {
+                                                sendMessage(&(c->usersconn),userCourant->nom,message,c->nom);
+                                                //sendResponse("ok",userCourant->adresse,0);
+                                                printf("LOG | %s envoie un message sur  le canal : %s\n", userCourant->nom, c->nom);
+                                            }else{
+                                                printf("LOG | %s n'est pas dans le canal : %s\n",userCourant-> nom,c->nom);
+                                                sendResponse("Vous n'etes pas dans le canal",userCourant->adresse,1);
                                             }
-                                        }else{
 
-                                            //sendResponse("Canal not found",userCourant->adresse,1);
-                                            printf("LOG | Canal not found  ");
                                         }
                                     }else{
-                                        //sendResponse("error de taille2",userCourant->adresse,1);
-                                    }
-                                    break;
-                                case quitCanal:
 
-                                    printf("LOG | Quitting canal...\n");
-                                    if(n== sizeof(int)*2+sizeof(char)*21) {
-                                        char nom[20];
-                                        memcpy(&nom, &buf[sizeof(int) * 2], 21);
-                                        struct canaux *c;
-                                        if(isCanalNameUsed(premierCanal,nom,&c)==1){
-                                            removeCanalFromUser(&(userCourant->userscanaux),c);
-                                            removeUserFromCanal(userCourant,&(c->usersconn));
-                                            if(c->usersconn=NULL){
-                                                removeCanal(&premierCanal,c);
-                                                printf("LOG | suppression du canal %s\n",c->nom);
-                                            }
-                                            printf("LOG| Canal %s removed from user %s\n",c->nom,userCourant->nom);
-                                        }else{
-                                            printf("LOG | Canal not found\n");
-                                        }
+                                        //sendResponse("Canal not found",userCourant->adresse,1);
+                                        printf("LOG | Canal not found  ");
+                                    }
+                                }else{
+                                    //sendResponse("error de taille2",userCourant->adresse,1);
+                                }
+                                break;
+                            case quitCanal:
+
+                                printf("LOG | Quitting canal...\n");
+                                if(n== sizeof(int)*2+sizeof(char)*21) {
+                                    char nom[20];
+                                    memcpy(&nom, &buf[sizeof(int) * 2], 21);
+                                    struct canaux *c;
+                                    if(isCanalNameUsed(premierCanal,nom,&c)==1){
+                                        removeCanalFromUser(userCourant,c);
+
+                                        removeUserFromCanal(userCourant,c);
+                                        printf("salut\n");
+                                        fflush(stdout);
+                                        //assert(c->usersconn->user->nom!=NULL);
+                                        //printf("user connected : %s",c->usersconn->user->nom);
+                                        /*if(c->usersconn=NULL){
+                                            removeCanal(&premierCanal,c);
+                                            printf("LOG | suppression du canal %s\n",c->nom);
+                                        }*/
+                                        printf("LOG| Canal %s removed from user %s\n",c->nom,userCourant->nom);
                                     }else{
-                                        //sendResponse("error de taille2",userCourant->adresse,1);
+                                        printf("LOG | Canal not found\n");
                                     }
-                                    break;
-                                default:
-                                    sendResponse("erreur de type de packet",userCourant->adresse,1);
-                                    break;
-                            }
-
+                                }else{
+                                    //sendResponse("error de taille2",userCourant->adresse,1);
+                                }
+                                break;
+                            default:
+                                sendResponse("erreur de type de packet",userCourant->adresse,1);
+                                break;
                         }
+
                     }
                 }
-                userCourant = userCourant->ptrUserSuivante;
-
             }
+            userCourant = userCourant->ptrUserSuivante;
+
+        }
 
         i++;
 
